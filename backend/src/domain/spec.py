@@ -59,4 +59,12 @@ SPEC = {
     ],
     "fixture": {"district_scope": "滨河片区", "start_date": "2026-11-14", "end_date": "2026-11-20", "top_percent": 40},
     "axes": "横轴为累计灯组占比（%），纵轴为累计工单占比（%）。洛伦兹图按工单数升序累加，帕累托图按工单数降序累加。",
+    "scheduled": True,
+    "schedule_anchor_day": "2026-11-14",
+    "schedule_time": "18:00",
+    "schedule_recipient": "夜巡班组站内收件箱",
+    "sources": [
+        {"key": "roster", "label": "GIS 灯组名册", "help": "每晚发报前最后收到的灯组名册；缺失时取该来源晚到的首批数据。"},
+        {"key": "hotline", "label": "市政热线批次", "help": "当天热线批次；缺失时取该来源晚到的首批数据，选定后不再更换。"},
+    ],
 }

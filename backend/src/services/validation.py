@@ -44,7 +44,7 @@ def cell(field, raw):
     return value
 
 
-def parse_rows(text):
+def parse_rows(text, source=None):
     reader = csv.DictReader(io.StringIO(text.removeprefix('\ufeff'), newline=''), strict=True)
     fields = SPEC['fields']
     keys = {field['key'] for field in fields}
@@ -68,7 +68,7 @@ def parse_rows(text):
     if not rows:
         raise ValueError('CSV 至少需要一行有效数据')
     if hasattr(analysis, 'validate_rows'):
-        analysis.validate_rows(rows)
+        analysis.validate_rows(rows, source=source)
     return rows
 
 

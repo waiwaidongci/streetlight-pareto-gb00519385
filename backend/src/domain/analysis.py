@@ -36,10 +36,16 @@ def _blank(value):
     return value is None or (isinstance(value, str) and not value.strip())
 
 
-def validate_rows(rows):
-    """校验全量台账和工单，返回去除空字段的独立记录。"""
+def validate_rows(rows, source=None):
+    """校验全量台账和工单，返回去除空字段的独立记录。
+
+    source='roster' 的批次只放灯组台账行，source='hotline' 只放暗区工单行，
+    单来源批次放宽跨类校验；合并后的日报运行仍以 source=None 做完整口径校验。
+    """
     if not isinstance(rows, (list, tuple)) or not rows:
         raise ValueError("灯组与工单明细为空，请导入灯组台账。")
+    if source not in (None, "roster", "hotline"):
+        raise ValueError("数据来源须为灯组名册或热线批次。")
 
     sites = set()
     incident_ids = set()
@@ -49,6 +55,10 @@ def validate_rows(rows):
         if not isinstance(row, dict):
             raise ValueError(f"第 {index} 条记录格式有误。")
         kind = row.get("record_type")
+        if source == "roster" and kind != _REGISTER:
+            raise ValueError(f"第 {index} 条记录：灯组名册批次只能包含「{_REGISTER}」行。")
+        if source == "hotline" and kind != _INCIDENT:
+            raise ValueError(f"第 {index} 条记录：热线批次只能包含「{_INCIDENT}」行。")
         site_id = _text(row.get("site_id"), f"第 {index} 条记录的灯组编号").upper()
         record = {"record_type": kind, "site_id": site_id}
         if kind == _REGISTER:
@@ -69,7 +79,7 @@ def validate_rows(rows):
             incident_id = _text(row.get("incident_id"), f"第 {index} 条记录的暗区工单号").upper()
             if incident_id in incident_ids:
                 raise ValueError(f"暗区工单号「{incident_id}」重复。")
-            if any(not _blank(row.get(key)) for key in ("district", "site_name", "fixture_count")):
+            if source is None and any(not _blank(row.get(key)) for key in ("district", "site_name", "fixture_count")):
                 raise ValueError(f"工单「{incident_id}」的工单行须留空片区、点位和灯具数。")
             record.update(
                 incident_id=incident_id,
@@ -81,11 +91,13 @@ def validate_rows(rows):
             raise ValueError(f"第 {index} 条记录的记录类型须为「{_REGISTER}」或「{_INCIDENT}」。")
         records.append(record)
 
-    if not sites:
-        raise ValueError("灯组台账为空，请为在册灯组提供台账行。")
-    for incident in incidents:
-        if incident["site_id"] not in sites:
-            raise ValueError(f"工单「{incident['incident_id']}」未匹配灯组「{incident['site_id']}」，请补录或更正台账。")
+    if source is None or source == "roster":
+        if not sites:
+            raise ValueError("灯组台账为空，请为在册灯组提供台账行。")
+    if source is None:
+        for incident in incidents:
+            if incident["site_id"] not in sites:
+                raise ValueError(f"工单「{incident['incident_id']}」未匹配灯组「{incident['site_id']}」，请补录或更正台账。")
     return records
 
 

@@ -8,6 +8,7 @@ class Role(StrEnum):
 class Status(StrEnum):
     QUEUED = 'queued'
     RUNNING = 'running'
+    WAITING = 'waiting'
     COMPLETE = 'complete'
     FAILED = 'failed'
 
@@ -15,3 +16,13 @@ class Review(StrEnum):
     PENDING = 'pending'
     ACCEPTED = 'accepted'
     RETURNED = 'returned'
+
+class Source(StrEnum):
+    ROSTER = 'roster'
+    HOTLINE = 'hotline'
+
+class DeliveryState(StrEnum):
+    DELIVERED = 'delivered'
+    BLOCKED = 'blocked'
+    PENDING = 'pending'
+    RETRYING = 'retrying'

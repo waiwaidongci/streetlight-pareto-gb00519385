@@ -16,6 +16,11 @@ export async function results(route, refresh) {
   const source = datasets.find(item => item.id === job.dataset_id);
   const message = feedback();
   const finished = item => item.status === 'complete' || item.status === 'failed';
+  if (job.status === 'waiting') {
+    return panel(job.name, pill(STATUS.waiting, 'waiting'),
+      p(job.error || '等待灯组名册或热线批次补齐，来源晚到后将自动补跑。', 'feedback'),
+      button('刷新', {class:'quiet', onClick:refresh}));
+  }
   if (!finished(job)) {
     const original = location.hash;
     const status = el('p',{role:'status'},'后台正在计算，完成后会自动展示。');

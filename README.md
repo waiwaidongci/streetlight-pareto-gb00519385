@@ -17,7 +17,14 @@
 | 集中度测算 | 选择批次和参数并提交后台计算，可从运行列表追踪状态。 |
 | 集中度与巡检队列 | 查看业务指标、证据表和解释，通过来源链接回查数据。 |
 | 夜巡复核 | 查看待处理或已完成记录。复核主管可提交夜巡处置及依据。 |
-| 巡检交付 | 按批查找结果，核对复核状态并下载相应的 CSV。 |
+| 巡检交付 | 按批查找结果，核对复核状态并下载相应的 CSV；定时日报的交付清单逐日列出待补来源、所用批次与日报下载。 |
+
+## 定时日报与漏发补跑
+
+- 每日 18:00（北京时间）发报，每个报告日需要两类来源：GIS 灯组名册与当天市政热线批次。导入时在「灯组与工单」选择数据来源与来源批次日期。
+- 名册按发报时点前最后收到的快照取数并跨日沿用；热线按报告日取当天批次。某份来源在发报点前缺失时，不拿别日数据顶替，而取该来源**晚到的首批**数据，批次一经选定即锁定不换。
+- 漏发恢复后 worker 逐日补跑：先补挂起日报（晚到来源），再物化到期计划，最后重试中断的发布。连续交接日期只走到**首个缺口前**，缺口闭合后后续日报才继续；后面的日报若来源齐备可以先发布。
+- 发布幂等：每个运行最多一份回执，补跑与定时发报并发也只发一份；发布中断后恢复时，已投递的不重复、未投递或无回执的补上。复核主管可在「巡检交付」点「恢复补跑」手动触发，交付清单给出交接边界、待补来源、所用批次和日报下载链接。
 
 ## 启动
 
@@ -61,7 +68,8 @@ docker compose exec -T backend python -m scripts.seed_demo
 | 前端 | Nginx 与原生 HTML、CSS、JavaScript。`frontend/src/pages` 放页面，`components/common` 放共用表格、图表及表单。 |
 | API | Python 3.11、FastAPI、SQLAlchemy。`backend/src/domain` 放本项目字段、业务计算和演示数据，`routes` 放接口，`models` 放表模型。 |
 | 后台 | 独立 Python worker，通过 Redis 唤醒，从数据库租约领取计算，CSV 写入共享卷。 |
-| 数据 | PostgreSQL 16 存储批次、运行与审计。`backend/scripts/seed_demo.py` 可安全重复执行。 |
+| 数据 | PostgreSQL 16 存储批次、运行与审计。`backend/scripts/seed_demo.py` 可安全重复执行，植入多日双来源批次（含两晚缺口与晚到首批）及每日 18:00 的定时计划。 |
+| 测试 | `backend/tests` 用 SQLite 内存库覆盖来源点选、逐日补跑、首缺口截断、幂等发布与恢复接口；在 `backend` 下执行 `python -m pytest tests/`。 |
 
 改动前端后执行 `docker compose up -d --build frontend`。改动接口或算法后执行 `docker compose up -d --build backend worker`，再刷新浏览器。如需保留数据，停止时执行 `docker compose down`。使用 `docker compose down -v --remove-orphans` 会清除该项目的数据库、Redis 和报表卷。
 

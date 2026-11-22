@@ -22,9 +22,11 @@ export async function runPage(route, refresh) {
   const plan = button('保存定时计划',{type:'button',class:'primary','data-testid':'save-schedule'});
   const scheduleFields = scheduling && session.canReview && el('details',{class:'schedule-fields'},
     el('summary',{},'定时站内分发'),
-    p('单次执行锁定所选批次。每日计划读取最新导入的批次，报告日逐日推进。通过发布门槛后进入站内收件箱。','subtle'),
+    p('单次执行锁定所选批次。每日计划按报告日逐日推进：取发报前最后灯组名册与当天热线批次，缺失则等该来源晚到首批并锁定；漏发恢复后逐日补跑，连续交接止于首个缺口。','subtle'),
     field({key:'recipient',label:'收件团队',type:'string',required:false,max_length:100}),
     field({key:'first_at',label:'首次执行时间（北京时间）',type:'datetime-local',required:false}),
+    el('label',{class:'field'},el('span',{},'首份报告日'),
+      el('input',{name:'anchor_report_day',type:'date'})),
     el('label',{class:'check'},el('input',{name:'repeat_daily',type:'checkbox'}),'每日同一时间运行'), plan);
   const form = el('form',{class:'fields','data-testid':'run-form',
     onSubmit:handler(submit,error,async event=>{
@@ -36,8 +38,10 @@ export async function runPage(route, refresh) {
     if (!form.reportValidity()) return;
     const data = new FormData(form);
     const recipient = data.get('recipient'), start = data.get('first_at');
+    const anchor = data.get('anchor_report_day') || null;
     if (!recipient?.trim() || !start) throw new Error('请填写收件团队和首次执行时间');
-    await workspace.schedule({...runRequest(data,spec),recipient,first_at:`${start}:00+08:00`,repeat_daily:data.has('repeat_daily')});
+    await workspace.schedule({...runRequest(data,spec),recipient,first_at:`${start}:00+08:00`,
+      repeat_daily:data.has('repeat_daily'), anchor_report_day:anchor});
     await refresh();
   }));
   const runList = table([

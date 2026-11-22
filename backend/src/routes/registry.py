@@ -46,9 +46,11 @@ def details(dataset_id: int, offset: int = Query(0, ge=0), limit: int = Query(16
 @router.post('/datasets', status_code=201)
 def upload(body: Upload, db: Session = Depends(connection),
            actor: User = Depends(allow(Role.ADMIN, Role.ANALYST))):
-    rows = parse_rows(body.csv_text)
-    item, created = save(db, body.name, body.filename, rows, actor.username)
+    rows = parse_rows(body.csv_text, source=body.source)
+    item, created = save(db, body.name, body.filename, rows, actor.username,
+                         source=body.source, batch_date=body.batch_date)
     if created:
-        record(db, actor.username, 'dataset.imported', item.id, rows=item.row_count)
+        record(db, actor.username, 'dataset.imported', item.id, rows=item.row_count,
+               source=item.source, batch_date=item.batch_date)
     db.commit()
     return {**views.dataset(item), 'created': created}

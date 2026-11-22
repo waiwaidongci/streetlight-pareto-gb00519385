@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field
 from src.constants.enums import Review
 
@@ -13,6 +13,8 @@ class Upload(Request):
     name: str = Field(min_length=1, max_length=120)
     filename: str = Field(min_length=1, max_length=160)
     csv_text: str = Field(min_length=1, max_length=2_000_000)
+    source: str = Field(default='roster', pattern='^(roster|hotline)$')
+    batch_date: str | None = Field(default=None, pattern=r'^\d{4}-\d{2}-\d{2}$')
 
 class RunRequest(Request):
     dataset_id: int = Field(gt=0)
@@ -28,3 +30,4 @@ class ScheduleRequest(RunRequest):
     recipient: str = Field(min_length=1, max_length=100)
     first_at: datetime
     repeat_daily: bool = False
+    anchor_report_day: date | None = None

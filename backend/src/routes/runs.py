@@ -14,13 +14,14 @@ from src.schemas.requests import ReviewRequest, RunRequest
 from src.services.audit import record
 from src.services.validation import normalize_params
 from src.utils import views
+from src.utils.db import row_locked
 from src.utils.wakeup import wake
 
 router = APIRouter(prefix='/runs')
 
 
 def require_job(db, run_id, lock=False):
-    item = db.get(Run, run_id, with_for_update=lock)
+    item = db.get(Run, run_id, with_for_update=lock and row_locked(db))
     if not item:
         raise HTTPException(404, '找不到该运行记录')
     return item

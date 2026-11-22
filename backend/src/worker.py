@@ -1,7 +1,8 @@
 import logging
 import time
 from pathlib import Path
-from src.services.execution import claim, execute, materialize_due
+from src.services import scheduling
+from src.services.execution import claim, execute
 from src.utils.wakeup import wait
 
 logging.basicConfig(level=logging.INFO)
@@ -9,17 +10,22 @@ log = logging.getLogger(__name__)
 heartbeat = Path('/tmp/analysis-heartbeat')
 
 
+def cycle():
+    # 顺序固定：先补齐挂起日报（晚到来源），再物化到期计划，最后重试中断发布并消费队列。
+    scheduling.promote_waiting()
+    scheduling.materialize_due()
+    scheduling.retry_pending()
+    lease = claim()
+    if lease:
+        execute(lease)
+
+
 def main():
     while True:
         try:
-            materialize_due()
-            lease = claim()
+            cycle()
             heartbeat.touch()
-            if lease:
-                execute(lease)
-                heartbeat.touch()
-            else:
-                wait()
+            wait()
         except Exception:
             log.exception('Worker cycle failed')
             time.sleep(2)

@@ -2,6 +2,7 @@ import {feedback, field} from '../components/common/fields.js';
 import {empty, panel} from '../components/common/panels.js';
 import {table} from '../components/common/table.js';
 import {handler} from '../hooks/action.js';
+import {SOURCE} from '../constants/enums.js';
 import {session} from '../stores/session.js';
 import {workspace} from '../stores/workspace.js';
 import {button, el, link, p} from '../utils/dom.js';
@@ -19,7 +20,7 @@ export async function inputs(route, refresh) {
     el('select',{id:'dataset-id','aria-label':'选择数据批次',onChange:event=>{location.hash=`#inputs/${event.target.value}`;}},
       datasets.map(item=>el('option',{value:item.id,selected:item.id === selected.id}, item.name))),
     link('使用此批次运行',`#run/${detail.id}`,{class:'quiet'})),
-    p(`${detail.filename} · ${detail.row_count} 行 · ${date(detail.created_at)}`,'filename'),
+    p(`${detail.filename} · ${detail.row_count} 行 · ${SOURCE[detail.source] || detail.source}${detail.batch_date ? ` · 批次日 ${detail.batch_date}` : ''} · ${date(detail.created_at)}`,'filename'),
     table(columns,detail.rows,{caption:'批次明细',pageSize:16}),
     el('div',{class:'pagination'},
       route.offset > 0 && link('上一批明细',`#inputs/${detail.id}/${Math.max(0,route.offset-16)}`,{class:'quiet'}),
@@ -27,17 +28,26 @@ export async function inputs(route, refresh) {
       route.offset+16 < detail.row_count && link('下一批明细',`#inputs/${detail.id}/${route.offset+16}`,{class:'quiet'})))
     : empty('没有可用的批次。请导入示例或业务 CSV。');
   const submit = button('校验并导入', {type:'submit',class:'primary'});
+  const sourceField = el('label',{class:'field'}, el('span',{},'数据来源'),
+    el('select',{name:'source',required:true},
+      el('option',{value:'roster',selected:true}, SOURCE.roster),
+      el('option',{value:'hotline'}, SOURCE.hotline)));
+  const batchDateField = el('label',{class:'field'}, el('span',{},'来源批次日期'),
+    el('input',{name:'batch_date',type:'date'}));
   const upload = session.canWrite && el('form',{class:'fields',onSubmit:handler(submit,error,async event=>{
     const data = new FormData(event.target);
-    const file = data.get('source');
+    const file = data.get('source_file');
     if (!file?.size) throw new Error('请选择一个 CSV 文件');
     if (file.size > 2_000_000) throw new Error('CSV 最多 2 MB');
-    const item = await workspace.upload({name:data.get('batch_name'),filename:file.name,csv_text:await file.text()});
+    const batchDate = data.get('batch_date') || null;
+    const item = await workspace.upload({name:data.get('batch_name'),filename:file.name,
+      csv_text:await file.text(), source:data.get('source'), batch_date:batchDate});
     const target = `#inputs/${item.id}`;
     if (location.hash === target) await refresh();
     else location.hash = target;
   })},field({key:'batch_name',label:'批次名称',type:'string',max_length:120}),
-    el('label',{class:'field',for:'source'}, el('span',{},'业务 CSV'),el('input',{id:'source',type:'file',name:'source',accept:'.csv,text/csv',required:true})), submit);
+    sourceField, batchDateField,
+    el('label',{class:'field',for:'source_file'}, el('span',{},'业务 CSV'),el('input',{id:'source_file',type:'file',name:'source_file',accept:'.csv,text/csv',required:true})), submit);
   return el('div',{class:'two-col'},el('div',{class:'wide-panel'},preview),el('aside',{class:'sidebar-panel'},
     panel('数据导入',p('导入后保留原批次和校验指纹，可用同一份数据复跑。','subtle'),sample,upload,error),
     panel('字段说明',el('dl',{class:'dictionary'},spec.fields.map(item=>el('div',{},el('dt',{},item.label),
